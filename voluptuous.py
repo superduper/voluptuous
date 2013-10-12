@@ -211,6 +211,43 @@ class Schema(object):
             raise MultipleInvalid([e])
         # return self.validate([], self.schema, data)
 
+    def __add__(self, other):
+        """Combine two schemas
+
+        Works with dict based schemas
+        >>> validate_a = Schema({'one': 'two', 'three': 'four'})
+        >>> validate_b = Schema({'five': 'six', 'seven': 'eight'})
+        >>> (validate_a + validate_b).schema
+        {'seven': 'eight', 'five': 'six', 'three': 'four', 'one': 'two'}
+
+        As well as with lists
+        >>> validate_a = Schema(['one', 'two'])
+        >>> validate_b = Schema(['three', 'four'])
+        >>> (validate_a + validate_b).schema
+        ('one', 'two', 'three', 'four')
+
+         As well as with and tuples
+        >>> validate_a = Schema(('one', 'two'))
+        >>> validate_b = Schema(('three', 'four'))
+        >>> (validate_a + validate_b).schema
+        ('one', 'two', 'three', 'four')
+
+        """
+        assert isinstance(other.schema, type(self.schema)), \
+            "Other schema should be same type"
+        if isinstance(self.schema, dict):
+            is_nested = lambda s: isinstance(s, (dict, tuple, list, set))
+            assert not filter(is_nested, self.schema.values()), \
+                "Left schema should not have nested elements"
+            assert not filter(is_nested, other.schema.values()), \
+                "Right schema should not have nested elements"
+            new_schema = dict(other.schema, **self.schema)
+        elif isinstance(self.schema, (tuple, list)):
+            new_schema = tuple(self.schema) + tuple(other.schema)
+        else:
+            raise NotImplementedError
+        return Schema(schema=new_schema, required=self.required, extra=self.extra)
+        
     def _compile(self, schema):
         if schema is Extra:
             return lambda _, v: v
